@@ -1,0 +1,2 @@
+# from GUI.events.registration.threeD_dentAL_by_crown_seg.three_D_dentAL_by_seg import ThreeDDentALByCrownSeg
+from events.registration.threeD_dentAL_by_crown_seg.method import ThreeDDentALByCrownSeg

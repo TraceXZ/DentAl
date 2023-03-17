@@ -1,0 +1,1 @@
+from GUI.events.registration.method_demo.method_demo import DemoMethod
