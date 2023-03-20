@@ -7,8 +7,6 @@ import torch
 from scipy.ndimage import zoom
 
 
-DEVICE = torch.device('cuda')
-
 
 class ThreeDDentALByCrownSeg(AbstractRegistrationMethod):
 
@@ -16,7 +14,7 @@ class ThreeDDentALByCrownSeg(AbstractRegistrationMethod):
         super(ThreeDDentALByCrownSeg, self).__init__(cbct_path, save_path, args)
 
         self.cbct_path = cbct_path
-        self.device = DEVICE
+        self.device = torch.device(args.device)
         self.max_crown_num = 2
         self.oral = None
         self.model = Unet(4, 16).to(self.device)
