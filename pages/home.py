@@ -6,6 +6,7 @@ import argparse
 import sys
 sys.path.append('events')
 
+
 class MainPage:
 
     def __init__(self, args, title='DentAI 计算机辅助植牙界面', size='500x300'):

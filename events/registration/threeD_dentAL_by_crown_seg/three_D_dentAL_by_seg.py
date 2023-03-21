@@ -10,6 +10,8 @@ import warnings
 import torch
 import nibabel
 import skimage
+from math import ceil, floor
+import torch.nn.functional as F
 
 
 PATCH_SIZE = 72
@@ -34,6 +36,7 @@ class ThreeDDentALByCrownSeg(AbstractRegistrationMethod):
         self.radius = float(self.args.radius)  # pre-defined
         self.device = torch.device(self.device)
 
+
     def missing_tooth_localization(self):
 
         # cbct_patch = patching_with_centroid(self.centroid, self.patch_size, self.cbct)
@@ -52,7 +55,16 @@ class ThreeDDentALByCrownSeg(AbstractRegistrationMethod):
         else:
             self.cbct = read_dcm(self.cbct)
 
+        w, h, d = self.cbct.shape
+
         self.cbct = torch.from_numpy(self.cbct).unsqueeze(0).unsqueeze(0).to(self.device, torch.float)
+
+        max_dim = max(w, h, d)
+
+        self.padding = [floor((max_dim - d) / 2), ceil((max_dim - d) / 2), floor((max_dim - h) / 2),
+                   ceil((max_dim - h) / 2), floor((max_dim - w) / 2), ceil((max_dim - w) / 2)]
+
+        self.cbct = F.pad(self.cbct, self.padding)
 
     def registration(self):
 

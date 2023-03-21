@@ -5,7 +5,7 @@ sys.path.append('events/registration/threeD_dentAL_by_crown_seg')
 from utils import Oral, read_dcm, Unet, read_dcm
 import torch
 from scipy.ndimage import zoom
-
+import torch.nn.functional as F
 
 
 class ThreeDDentALByCrownSeg(AbstractRegistrationMethod):
@@ -34,30 +34,36 @@ class ThreeDDentALByCrownSeg(AbstractRegistrationMethod):
         self.oral.pred_implant(self.model)
         self.log_book = self.oral.log_book
 
+        padding = self.oral.padding
+        _, _, w, h, d = self.oral.cbct.shape
         for idx, teeth in enumerate(self.oral.tooth):
 
-            data = zoom(teeth.data, self.oral.env_vox / self.oral.oral_vox)
+            data = F.interpolate(torch.from_numpy(teeth.data[np.newaxis, np.newaxis])[:, :, padding[-2]: w - padding[-2], padding[-4]: h - padding[-4],
+               padding[-6]: d - padding[-6]], scale_factor=self.oral.env_vox / self.oral.oral_vox)
 
             data[data <= 0.9] = 0
             data[data > 0.9] = 1
 
-            teeth.data = data
+            teeth.data = data.squeeze().numpy()
 
             for implant in teeth.implants:
-
-                data = zoom(implant.data, self.oral.env_vox / self.oral.oral_vox)
+                data = F.interpolate(torch.from_numpy(implant.data[np.newaxis, np.newaxis][:, :, padding[-2]: w - padding[-2], padding[-4]: h - padding[-4],
+               padding[-6]: d - padding[-6]]),
+                                     scale_factor=self.oral.env_vox / self.oral.oral_vox)
 
                 data[data <= 0.9] = 0
                 data[data > 0.9] = 1
 
-                implant.data = data
+                implant.data = data.squeeze().numpy()
 
-                pred_implant = zoom(implant.implant.data, self.oral.env_vox / self.oral.oral_vox)
+                pred_implant = F.interpolate(torch.from_numpy(implant.implant.data[np.newaxis, np.newaxis][:, :, padding[-2]: w - padding[-2], padding[-4]: h - padding[-4],
+               padding[-6]: d - padding[-6]]),
+                                     scale_factor=self.oral.env_vox / self.oral.oral_vox)
 
                 pred_implant[pred_implant <= 0.9] = 0
                 pred_implant[pred_implant > 0.9] = 1
 
-                implant.implant.data = pred_implant
+                implant.implant.data = pred_implant.squeeze().numpy()
 
     def save(self):
 

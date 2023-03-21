@@ -95,18 +95,16 @@ def read_dcm(dcm_path):
     series_ID = reader.GetMetaData('0020|000e')
     sorted_file_names = sitk.ImageSeriesReader.GetGDCMSeriesFileNames(parent_path, series_ID)
     # adds-on
+    reader = sitk.ImageSeriesReader()
+    reader.SetFileNames(sorted_file_names)
+    img = reader.Execute()
+    arr = sitk.GetArrayFromImage(img)
 
-    img = []
-    for idx, slice_id in enumerate(sorted_file_names):
+    slice = pydicom.dcmread(sorted_file_names[0])
+    vox = slice.PixelSpacing[0]
+    position = slice.ImagePositionPatient
 
-        slice = pydicom.dcmread(slice_id)
-
-        if idx == 0:
-            vox = slice.PixelSpacing[0]
-            position = slice.ImagePositionPatient
-        img.append(slice.pixel_array[:, :, np.newaxis])
-
-    return img, vox, position
+    return arr, vox, position
 
 
 def nii2stl(nii):

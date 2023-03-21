@@ -6,7 +6,10 @@ from skimage import measure, morphology
 from skimage.measure import regionprops
 from scipy.ndimage import zoom, binary_erosion
 from utils import read_dcm
+from math import ceil, floor
+import torch.nn.functional as F
 import warnings
+import torch.nn.functional as F
 import SimpleITK as sitk
 
 
@@ -43,13 +46,18 @@ class Entity:
         if type(self.data) is torch.Tensor:
             self.data = self.data.squeeze().cpu().numpy()
 
-        nibabel.save(nibabel.Nifti1Image(self.data, np.eye(4)), name)
+
+        data = self.data
+
+        nibabel.save(nibabel.Nifti1Image(data, np.eye(4)), name)
 
     def save_as_stl(self, name, vox, pos):
 
-        self.data = self.data.transpose(1, 0, 2)
+        data = self.data
 
-        verts, faces, normals, values = measure.marching_cubes(self.data, 0)
+        data = data.transpose(1, 0, 2)
+
+        verts, faces, normals, values = measure.marching_cubes(data, 0)
 
         data = mesh.Mesh(np.zeros(faces.shape[0], dtype=mesh.Mesh.dtype))
 
@@ -200,10 +208,9 @@ class Oral:
             self.oral_position = [affine[i, 3] for i in range(4)]
 
         else:
-            cbct, vox, pos = read_dcm(cbct_path)
+            data, vox, pos = read_dcm(cbct_path)
             self.oral_vox = vox
             self.oral_position = pos
-            data = np.concatenate(cbct, axis=-1)
 
         self.device = device
 
@@ -211,9 +218,17 @@ class Oral:
 
         self.env_vox = env_vox
 
-        self.cbct = zoom(data, self.oral_vox / np.array([env_vox, env_vox, env_vox]))
+        self.cbct = torch.from_numpy(data.astype(np.float32)).unsqueeze(0).unsqueeze(0).to(self.device, torch.float)
+        self.cbct = self.cbct.permute([0, 1, 3, 4, 2])
 
-        self.full_size = self.cbct.shape
+        self.cbct = F.interpolate(self.cbct, scale_factor=self.oral_vox / env_vox)
+
+        _, _, w, h, d = self.cbct.shape
+
+        max_dim = max(w, h, d)
+
+        self.padding = [floor((max_dim - d) / 2), ceil((max_dim - d) / 2), floor((max_dim - h) / 2),
+                        ceil((max_dim - h) / 2), floor((max_dim - w) / 2), ceil((max_dim - w) / 2)]
 
         self.tooth = []
 
@@ -223,7 +238,9 @@ class Oral:
 
         self.PATCH_SZ = 72
 
-        self.cbct = torch.from_numpy(self.cbct.astype(np.float32)).unsqueeze(0).unsqueeze(0).to(self.device, torch.float)
+        self.cbct = F.pad(self.cbct, self.padding)
+
+        self.full_size = self.cbct.shape[2:]
 
         self.log_book = None
 
