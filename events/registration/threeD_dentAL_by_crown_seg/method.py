@@ -24,13 +24,13 @@ class ThreeDDentALByCrownSeg(AbstractRegistrationMethod):
 
     def missing_tooth_localization(self):
         self.model.load_state_dict(
-            torch.load('H:\\dentAL\\GUI\\events\\registration\\threeD_dentAL_by_crown_seg\\utils\\model.pkl'))
+            torch.load('events/registration/threeD_dentAL_by_crown_seg/utils/model.pkl'))
         self.oral.pred_teeth(self.model)
         self.log_book = self.oral.log_book
 
     def registration(self):
         self.model.load_state_dict(
-            torch.load('H:\\dentAL\\GUI\events\\registration\\threeD_dental_by_implant_seg\\model.pkl'))
+            torch.load('events/registration/threeD_dental_by_implant_seg/model.pkl'))
         self.oral.pred_implant(self.model)
         self.log_book = self.oral.log_book
 
