@@ -67,6 +67,15 @@ class Entity:
 
         data.save(name)
 
+        # smooth
+
+        import trimesh
+
+        stl = trimesh.load_mesh(name)
+        smooth = trimesh.smoothing.filter_laplacian(stl, lamb=1, iterations=20, volume_constraint=False)
+        # smooth.apply_translation(np.array([4, 10, -9]) * np.array([vox, vox, vox]))
+        smooth.export(name)
+
 
 class SegEntity(Entity):
 
@@ -238,9 +247,9 @@ class Oral:
 
         self.PATCH_SZ = 72
 
-        self.cbct = F.pad(self.cbct, self.padding)
+        # self.cbct = F.pad(self.cbct, self.padding)
 
-        self.full_size = self.cbct.shape[2:]
+        self.full_size = None
 
         self.log_book = None
 
@@ -249,6 +258,13 @@ class Oral:
         with torch.no_grad():
 
             pred_crowns = model(self.cbct)
+
+        # padding afterwards to save memory.
+        self.cbct = F.pad(self.cbct, self.padding)
+
+        pred_crowns = F.pad(pred_crowns, self.padding)
+
+        self.full_size = self.cbct.shape[2:]
 
         pred_crowns = (pred_crowns - pred_crowns.min()) / (pred_crowns.max() - pred_crowns.min())
 
