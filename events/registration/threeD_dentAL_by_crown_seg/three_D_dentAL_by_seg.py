@@ -36,7 +36,6 @@ class ThreeDDentALByCrownSeg(AbstractRegistrationMethod):
         self.radius = float(self.args.radius)  # pre-defined
         self.device = torch.device(self.device)
 
-
     def missing_tooth_localization(self):
 
         # cbct_patch = patching_with_centroid(self.centroid, self.patch_size, self.cbct)
@@ -182,8 +181,8 @@ class ThreeDDentALByCrownSeg(AbstractRegistrationMethod):
             # axial plane depending on the crown being upper or down side (code implementation need).
             # 4. Double check why the result didnt achieves as good as expected when the primary result achieved a good result. (Villa_778 test)
             implant_ai[labeled_implants == rank[0][1] + 1] = 1
-            implant = implant_centre_filling(crown, centroid, regionprops(implant_ai.astype(np.int))[0].centroid, self.radius, self.length, self.vox, self.side, crown.shape)
-            # implant = implant_by_rotation(crown, centroid, regionprops(implant_ai.astype(np.int))[0].centroid, self.radius, self.length, full_size, self.vox[0], self.side)
+            # implant = implant_centre_filling(crown, centroid, regionprops(implant_ai.astype(np.int))[0].centroid, self.radius, self.length, self.vox, self.side, crown.shape)
+            implant = implant_by_rotation(crown, centroid, regionprops(implant_ai.astype(np.int))[0].centroid, self.radius, self.length, full_size, self.vox[0], self.side)
             # implant_ai = zoom(implant_ai, self.vox / self.orignal_vox)
             # dc = zoom(dc, self.vox / self.orignal_vox)
             # crown = zoom(crown, self.vox / self.orignal_vox)

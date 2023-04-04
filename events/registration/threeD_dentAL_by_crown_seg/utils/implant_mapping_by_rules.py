@@ -165,7 +165,7 @@ def implant_centre_filling(crown, vertex1, vertex2, radius, length, vox, side, m
     radius = int(radius)
 
     start = point_shift_along_vector(diff, bound, 3, vox, side)
-    end = point_shift_along_vector(diff, start, 11, vox, side)
+    end = point_shift_along_vector(diff, start, length, vox, side)
 
     num = abs(round(end[-1] - start[-1]))
 
@@ -201,45 +201,47 @@ def implant_by_rotation(crown, vertex1, vertex2, radius, length, matrix_size, vo
     """
     bound = vertex1
 
-    implant = np.zeros(matrix_size)
-
     length /= vox
     radius /= vox
 
     sgn = 1 if side == 'down' else -1
 
-    for z in range(round(length)):
-
-        for x in range(round(bound[0] - radius), round(bound[0] + radius)):
-
-            for y in range(round(bound[1] - radius), round(bound[1] + radius)):
-
-                if abs(x - bound[0]) ** 2 + abs(y - bound[1]) ** 2 <= radius ** 2:
-
-                    implant[x, y, round(bound[2] + sgn * z)] = 1
-
-    origin = np.array(bound)
-
-    vector = np.array(vertex2) - np.array(bound)
-    vector /= vector[-1]
+    diff = np.array(vertex2) - np.array(vertex1)
+    diff = diff / np.abs(diff[-1])
 
     while crown[round(bound[0]), round(bound[1]), round(bound[2])] == 1:
 
-        bound += vector
+        bound += diff
 
-        if any(bound + vector) < 0 or any(bound + vector) > matrix_size[2]:
+        if any(bound + diff) < 0 or any(bound + diff) > matrix_size[2]:
 
             break
 
-    # vertex = point_shift_along_vector(vector, bound, 3, vox, side)
+    start = point_shift_along_vector(diff, bound, 3, vox, side)
 
-    ori = np.array(vertex2) - np.array(matrix_size) // 2
-    ori = ori / np.linalg.norm(ori)
+    implant = np.zeros(matrix_size)
+
+    for z in range(round(length)):
+
+        for x in range(round(start[0] - radius), round(start[0] + radius)):
+
+            for y in range(round(start[1] - radius), round(start[1] + radius)):
+
+                if abs(x - start[0]) ** 2 + abs(y - start[1]) ** 2 <= radius ** 2:
+
+                    implant[x, y, round(start[2] + sgn * z)] = 1
+
+    origin = start + np.array([0, 0, length / 2])
+    vector = np.array(vertex2) - np.array(bound)
+    vector /= np.linalg.norm(vector)
+
+    affine_implant = affine_transformation(torch.from_numpy(implant[np.newaxis, np.newaxis]), get_rotation_mat(vector, [0, 0, 1]))
+    new_origin = regionprops(affine_implant)[0].centroid
 
     # debug rotation 后的植体平移
-    translate = vertex1 - origin
+    translate = new_origin - origin
 
-    affine_implant = affine_transformation(torch.from_numpy(implant[np.newaxis, np.newaxis]), get_rotation_mat(ori, [0, 0, 1]), pure_translation=translate[::-1] / implant.shape[-1] * 2)
+    affine_implant = affine_transformation(torch.from_numpy(implant[np.newaxis, np.newaxis]), torch.eye(3), pure_translation=translate[::-1] / implant.shape[-1] * 2)
 
     return affine_implant.squeeze().cpu().numpy()
 

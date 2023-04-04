@@ -5,7 +5,7 @@ from stl import mesh
 from skimage import measure, morphology
 from skimage.measure import regionprops
 from scipy.ndimage import zoom, binary_erosion
-from utils import read_dcm
+from utils import read_dcm, affine_transformation, get_rotation_mat
 from math import ceil, floor
 import torch.nn.functional as F
 import warnings
@@ -45,7 +45,6 @@ class Entity:
 
         if type(self.data) is torch.Tensor:
             self.data = self.data.squeeze().cpu().numpy()
-
 
         data = self.data
 
@@ -328,7 +327,8 @@ class Oral:
                 implant = Implant(implant_area, self.env_vox)
                 tooth.implants.append(implant)
                 tooth.teeth_classification(idx, cbct, ts=0.2)
-                Oral.implant_centre_filling(idx, tooth)
+                Oral.implant_by_rotation(idx, tooth)
+                # Oral.implant_centre_filling(idx, tooth)
 
             side = {'upper': '上', 'down': '下'}
             position = {'front': '前牙', 'middle': '尖牙', 'back': '后牙'}
@@ -401,6 +401,64 @@ class Oral:
                         res[x, y, round(pointer[2])] = 1
 
         implant.implant = Entity(res, implant.vox)
+
+    @staticmethod
+    def implant_by_rotation(idx, tooth):
+
+        crown = tooth.data
+        implant = tooth.implants[idx]
+
+        cent_crown = tooth.centroid
+        cent_implant = implant.centroid
+        matrix_size = crown.shape
+
+        diff = np.array(cent_implant) - np.array(cent_crown)
+        diff = diff / np.abs(diff[-1])
+
+        bound = np.copy(cent_crown).astype(np.float64)
+
+        while crown[round(bound[0]), round(bound[1]), round(bound[2])] == 1:
+
+            bound += diff
+
+            if any(bound + diff) < 0 or any(bound + diff) > matrix_size[2]:
+                break
+
+        radius = implant.radius / implant.vox
+        length = round(implant.length / implant.vox)
+
+        start = Oral.point_shift_along_vector(diff, bound, 2 / implant.vox)
+
+        res = np.zeros(matrix_size).astype(np.float32)
+        sgn = np.sign(diff[-1])
+
+        for z in range(round(length)):
+
+            for x in range(round(start[0] - radius), round(start[0] + radius)):
+
+                for y in range(round(start[1] - radius), round(start[1] + radius)):
+
+                    if abs(x - start[0]) ** 2 + abs(y - start[1]) ** 2 <= radius ** 2:
+                        res[x, y, round(start[2] - sgn * z)] = 1
+
+        # origin = start + np.array([0, 0, length / 2 * sgn])
+
+        # origin = regionprops(res.astype(np.int32))[0].centroid
+        origin = start
+        vector = np.array(cent_implant) - np.array(bound)
+        vector /= np.linalg.norm(vector)
+
+        translate = origin - np.array(res.shape) / 2
+        affine_res = affine_transformation(torch.from_numpy(res[np.newaxis, np.newaxis]).float(), torch.eye(3),
+                                           pure_translation=translate[::-1] / res.shape[-1] * 2)
+
+        affine_res = affine_transformation(affine_res, get_rotation_mat(vector, [0, 0, 1]))
+
+        affine_res = affine_transformation(affine_res, torch.eye(3), pure_translation=-translate[::-1] / res.shape[-1] * 2)
+
+        # debug rotation 后的植体平移
+
+        implant.implant = Entity(affine_res, implant.vox)
 
     @staticmethod
     def point_shift_along_vector(vector, start, shift):

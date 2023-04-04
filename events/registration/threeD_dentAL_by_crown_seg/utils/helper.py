@@ -29,11 +29,21 @@ def get_rotation_mat(ori1, ori2):
     :param ori2: orientation to be rotated
     :return: pythonic rotation matrix.
     """
-    ori1 = ori1.squeeze().numpy()
-    ori2 = ori2.squeeze().numpy()
+    if type(ori1) is list:
+        ori1 = np.array(ori1)
+    elif type(ori2) is torch.Tensor:
+        ori2 = ori2.squeeze().numpy()
+
+    if type(ori2) is list:
+        ori2 = np.array(ori2)
+    elif type(ori2) is torch.Tensor:
+        ori2 = ori2.squeeze().numpy()
+
     v = np.cross(ori1, ori2)
     c = np.dot(ori1, ori2)
+
     mat = np.identity(3) + skew(v) + np.matmul(skew(v), skew(v)) / (1 + c)
+
     return torch.from_numpy(np.flip(mat).copy()).float()
 
 
@@ -139,7 +149,7 @@ def cubic_padding(func):
 
 
 @cubic_padding
-def affine_transformation(img, affine: Union[List[torch.Tensor], torch.Tensor], pure_translation=None, mode='bilinear'):
+def affine_transformation(img, affine, pure_translation=None, mode='bilinear'):
     """
     :param img:
     :param affine:
@@ -152,6 +162,8 @@ def affine_transformation(img, affine: Union[List[torch.Tensor], torch.Tensor], 
     # add no pure translation
     if pure_translation is None:
         pure_translation = torch.zeros(b, 3, 1).to(device)
+    else:
+        pure_translation = torch.from_numpy(pure_translation[np.newaxis, :, np.newaxis]).float()
 
     # calculate affine matrices
     affine_mat = torch.eye(3, 3)
@@ -171,7 +183,7 @@ def affine_transformation(img, affine: Union[List[torch.Tensor], torch.Tensor], 
     # apply one-step affine transform
     affine_mat = affine_mat.repeat([b, 1, 1]) if len(affine_mat.shape) == 2 else affine_mat
     affine_matrix = torch.cat([affine_mat.to(device), pure_translation], dim=2)
-    grid = F.affine_grid(affine_matrix, img.shape, align_corners=False)
+    grid = F.affine_grid(affine_matrix, img.shape, align_corners=True)
 
     rot_img = F.grid_sample(input=img, grid=grid, mode=mode)
     _, _, w, h, d = rot_img.shape
