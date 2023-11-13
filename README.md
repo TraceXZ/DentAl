@@ -1,6 +1,6 @@
-# Automated dental implanting based on segmentation using segmentation and expertise medical regulations
+# Automated dental implanting based on image segmentation and prior expertise of oral surgical regulations
 
-A simple Graphic User Interface (GUI) application for automated dental implanting based on segmentation using segmentation and expertise medical regulations.
+A simple Graphic User Interface (GUI) application for automated dental implanting based on segmentation using segmentation and expertise in medical regulations.
 
 This APP takes CBCT scan formatted in DICOM as input, and outputs the crown and implant results in both NIFTI (voxel-based) and STL (mesh) formats.
 
